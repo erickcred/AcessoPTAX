@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Cotacao.DTO.Requests;
+using Cotacao.DTO.Responses;
 using Cotacao.Model;
 
 namespace Cotacao.Services;
@@ -27,20 +29,20 @@ public class ApiService
   /// <remarks>
   /// <param name="dataCotacao">dd-MM-yyyy</param>
   /// <returns></returns>
-  public async Task<APiServiceResponse<CotacaoDolar>> RetornarCotacaoDolarDia(DateTime dataCotacao)
+  public async Task<APiServiceResponse<CotacaoDolar>> RetornarCotacaoDolarDia(CotacaoDolarRequest cotaDolarRequest)
   {
-    var dataConvertida = dataCotacao.ToString("MM-dd-yyyy");
     APiServiceResponse<CotacaoDolar> apiServiceResponse;
 
     try
     {
       var response = await GetRequestAsync(
-        $"CotacaoDolarDia(dataCotacao=@dataCotacao)?%40dataCotacao='{dataConvertida}'&%24format=json&%24top=100");
+        $"CotacaoDolarDia(dataCotacao=@dataCotacao)?%40dataCotacao='{DataFormatada(cotaDolarRequest.DataCotacao)}'&%24format=json&%24top=100");
       if (response.IsSuccessStatusCode)
       {
         var result = await response.Content.ReadAsStringAsync();
         
         var json = JsonSerializer.Deserialize<PTAX<CotacaoDolar>>(result, _serializerOptions);
+
         apiServiceResponse = new APiServiceResponse<CotacaoDolar>
         {
           Data = json!.Values,
@@ -150,15 +152,14 @@ public class ApiService
   /// <param name="simboloMoeda">Exp: 'USD'</param>
   /// <param name="dataCotacao">dd-MM-yyyy</param>
   /// <returns></returns>
-  public async Task<APiServiceResponse<CotacaoMoedaDia>> RetornarCotacaoMoedaDia(string simboloMoeda, DateTime dataCotacao)
+  public async Task<APiServiceResponse<CotacaoMoedaDia>> RetornarCotacaoMoedaDia(CotacaoMoedaDiaRequest cotaMoedaDiaRequest)
   {
-    var dataConvertida = dataCotacao.ToString("MM-dd-yyyy");
     APiServiceResponse<CotacaoMoedaDia> apiServiceResponse;
 
     try
     {
       var response = GetRequestAsync(
-        $"CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?%40moeda='{simboloMoeda}'&%40dataCotacao='{dataConvertida}'&%24format=json").Result;
+        $"CotacaoMoedaDia(moeda=@moeda,dataCotacao=@dataCotacao)?%40moeda='{cotaMoedaDiaRequest.Simbolo()}'&%40dataCotacao='{DataFormatada(cotaMoedaDiaRequest.DataCotacao)}'&%24format=json").Result;
       if (response.IsSuccessStatusCode)
       {
         var result = await response.Content.ReadAsStringAsync();
@@ -223,6 +224,17 @@ public class ApiService
     {
       throw new Exception(ex.Message);
     }
+  }
+  #endregion
+
+  #region Conversões
+  private string DataFormatada(DateTime data)
+  {
+    var ehSegunda = (int)data.DayOfWeek == 1;
+    if (ehSegunda)
+      return data.AddDays(-3).ToString("MM-dd-yyyy");
+
+    return data.ToString("MM-dd-yyyy");
   }
   #endregion
 }
